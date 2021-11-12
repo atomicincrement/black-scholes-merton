@@ -97,6 +97,20 @@ mod generated {
             * x;
         y * recip
     }
+
+    /// See https://xorshift.di.unimi.it/splitmix64.c
+    pub fn runif(index: usize) -> f64 {
+        let mut z = (index + 1) as u64 * 0x9e3779b97f4a7c15;
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
+        z = z ^ (z >> 31);
+        from_bits((z >> 2) | 0x3ff0000000000000_u64) - 1.0
+    }
+
+    pub fn rnorm(index: usize) -> f64 {
+        //qnorm(runif(index) * 0.999 + 0.0005)
+        qnorm(runif(index))
+    }
 }
 
 struct BlackScholes {
@@ -161,7 +175,7 @@ impl BlackScholes {
         f64::exp(-1.0 * rf * t) * average
     }
 
-    // Naive call option price calculation.
+    // improve pricing function
     fn improved_option_price(&self, ot: OptionType) -> f64 {
         let mut r = rand::thread_rng();
         let n = Normal::new(0.0, 1.0).unwrap();
@@ -182,6 +196,26 @@ impl BlackScholes {
         let t = self.time_to_maturity;
         f64::exp(-1.0 * rf * t) * average
     }
+
+    // Use generated rnorm
+    fn rnorm_option_price(&self, ot: OptionType) -> f64 {
+        let stock_price = self.improved_stock_price_function();
+
+        use OptionType::*;
+        use generated::rnorm;
+        let average = match ot {
+            Call => (0..self.number_of_iterations).map(|i| {
+                f64::max(stock_price(rnorm(i)) - self.strike_price, 0.0)
+            }).sum::<f64>() / (self.number_of_iterations as f64),
+            Put => (0..self.number_of_iterations).map(|i| {
+                f64::max(self.strike_price - stock_price(rnorm(i)), 0.0)
+            }).sum::<f64>() / (self.number_of_iterations as f64),
+        };
+
+        let rf = self.risk_free_interest_rate;
+        let t = self.time_to_maturity;
+        f64::exp(-1.0 * rf * t) * average
+    }
 }
 
 fn main() {
@@ -194,12 +228,13 @@ fn main() {
         number_of_iterations : 100000000,
     };
 
-    for i in 0..100 {
-        let x = i as f64 * (1.0/100.0);
-        println!("{:12.8} {:24.20}", x, generated::qnorm(x));
-    }
+    // for i in 0..100 {
+    //     // let x = i as f64 * (1.0/100.0);
+    //     // println!("{:12.8} {:24.20}", x, generated::qnorm(x));
+    //     println!("{}", generated::rnorm(i));
+    // }
 
-    let step = 1;
+    let step = 2;
 
     match step {
         0 => {
@@ -209,6 +244,10 @@ fn main() {
         1 => {
             println!("call option price = {}", bs.improved_option_price(OptionType::Call));
             println!("put option price  = {}", bs.improved_option_price(OptionType::Put));
+        }
+        2 => {
+            println!("call option price = {}", bs.rnorm_option_price(OptionType::Call));
+            println!("put option price  = {}", bs.rnorm_option_price(OptionType::Put));
         }
         _ => unreachable!(),
     }
