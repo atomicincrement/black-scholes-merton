@@ -108,8 +108,8 @@ mod generated {
     }
 
     pub fn rnorm(index: usize) -> f64 {
-        //qnorm(runif(index) * 0.999 + 0.0005)
-        qnorm(runif(index))
+        qnorm(runif(index) * 0.999 + 0.0005)
+        // qnorm(runif(index))
     }
 }
 
@@ -219,6 +219,10 @@ impl BlackScholes {
 }
 
 fn main() {
+    // println!("{}", (0..1000000).map(|i| generated::runif(i)).sum::<f64>());
+    // return;
+
+
     let bs = BlackScholes {
         underlying_price : 20.0,
         strike_price : 21.0,
@@ -228,10 +232,16 @@ fn main() {
         number_of_iterations : 100000000,
     };
 
-    // for i in 0..100 {
-    //     // let x = i as f64 * (1.0/100.0);
-    //     // println!("{:12.8} {:24.20}", x, generated::qnorm(x));
-    //     println!("{}", generated::rnorm(i));
+    // {
+    //     let mut f = std::fs::File::create("/tmp/1.csv").unwrap();
+    //     use std::io::Write;
+    //     writeln!(f, "x,y").unwrap();
+    //     for i in 0..100000 {
+    //         let x = i as f64 * (1.0/100.0);
+    //         // writeln!(f, "{:12.8},{:24.20}", x, generated::qnorm(x)).unwrap();
+    //         writeln!(f, "{}, {}", i, generated::rnorm(i)).unwrap();
+    //     }
+    
     // }
 
     let step = 2;
